@@ -35,6 +35,13 @@ class StepTrackerWidget : AppWidgetProvider() {
             }
             views.setOnClickPendingIntent(R.id.widget_btn_start, startPI)
 
+            val openAppIntent = Intent(context, MainActivity::class.java)
+            val openAppPendingIntent = PendingIntent.getActivity(
+                context, 2, openAppIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_root, openAppPendingIntent)
+
             val stopIntent = Intent(context, StepListenerService::class.java).apply {
                 action = StepListenerService.ACTION_STOP_SESSION
             }
