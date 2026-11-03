@@ -17,14 +17,6 @@ class BootReceiver : BroadcastReceiver() {
             action == Intent.ACTION_MY_PACKAGE_REPLACED // service is killed on every reinstall/update
         if (!shouldStart) return
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.d("BootReceiver", "Activity recognition not granted, not starting service")
-            return
-        }
-
         Log.d("BootReceiver", "Starting StepListenerService after $action")
         try {
             ContextCompat.startForegroundService(context, Intent(context, StepListenerService::class.java))

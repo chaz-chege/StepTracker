@@ -74,12 +74,16 @@ class MainActivity : ComponentActivity() {
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             corePermissionGranted = hasCorePermission()
+            // Software counting (accelerometer) works without physical-activity permission.
+            // Start the service regardless so a denied hardware permission cannot disable tracking.
+            startStepService()
             if (corePermissionGranted) {
-                startStepService()
-            } else {
+                sendSessionAction(StepListenerService.ACTION_RECONFIGURE_SENSORS)
+            }
+            if (!corePermissionGranted) {
                 Toast.makeText(
                     this,
-                    "Physical activity permission is needed to count steps. Enable it in the app's settings.",
+                    "Using software step counting. Physical activity permission is optional and enables hardware sensors.",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -169,11 +173,10 @@ class MainActivity : ComponentActivity() {
         // Nudge the service every time the app comes to the front. It is idempotent, and it revives
         // tracking if the system killed the service while the app was in the background.
         corePermissionGranted = hasCorePermission()
-        if (corePermissionGranted) startStepService()
+        startStepService()
     }
 
     private fun startStepService() {
-        if (!hasCorePermission()) return
         try {
             ContextCompat.startForegroundService(this, Intent(this, StepListenerService::class.java))
         } catch (e: Exception) {

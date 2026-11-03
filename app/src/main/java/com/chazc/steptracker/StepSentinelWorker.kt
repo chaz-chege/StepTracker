@@ -25,14 +25,6 @@ class StepSentinelWorker(
             return Result.success()
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACTIVITY_RECOGNITION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.d("StepSentinel", "Activity recognition not granted, not restarting")
-            return Result.success()
-        }
-
         Log.d("StepSentinel", "Service is NOT running, attempting restart")
         try {
             ContextCompat.startForegroundService(

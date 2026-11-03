@@ -156,6 +156,7 @@ class StepListenerService : Service(), SensorEventListener {
         const val ACTION_REFRESH_WIDGET = "com.chazc.steptracker.REFRESH_WIDGET"
         const val ACTION_MIDNIGHT_RESET = "com.chazc.steptracker.MIDNIGHT_RESET"
         const val ACTION_TOGGLE_WAKELOCK = "com.chazc.steptracker.TOGGLE_WAKELOCK"
+        const val ACTION_RECONFIGURE_SENSORS = "com.chazc.steptracker.RECONFIGURE_SENSORS"
 
         /** True while an instance of the service is alive in this process. Used by the sentinel worker. */
         @Volatile var isRunning = false
@@ -229,8 +230,8 @@ class StepListenerService : Service(), SensorEventListener {
         stepCounterSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
         stepDetectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
         mode = when {
-            stepCounterSensor != null -> CountMode.HARDWARE_COUNTER
-            stepDetectorSensor != null -> CountMode.HARDWARE_DETECTOR
+            hasActivityRecognition() && stepCounterSensor != null -> CountMode.HARDWARE_COUNTER
+            hasActivityRecognition() && stepDetectorSensor != null -> CountMode.HARDWARE_DETECTOR
             else -> CountMode.ACCELEROMETER
         }
         StepTrackerState.updateSensorStatus(stepCounterSensor != null, stepDetectorSensor != null)
@@ -291,6 +292,7 @@ class StepListenerService : Service(), SensorEventListener {
 
     private fun handleCommand(action: String?) {
         try {
+            if (action == ACTION_RECONFIGURE_SENSORS) reconfigureSensors()
             registerSensors() // idempotent, also recovers if registration failed earlier
             when (action) {
                 ACTION_START_SESSION -> startSession(auto = false, silent = false)
@@ -452,18 +454,35 @@ class StepListenerService : Service(), SensorEventListener {
     // Sensors
     // ------------------------------------------------------------------------------------------
 
+    private fun reconfigureSensors() {
+        sensorManager.unregisterListener(this)
+        sensorsRegistered = false
+        mode = when {
+            hasActivityRecognition() && stepCounterSensor != null -> CountMode.HARDWARE_COUNTER
+            hasActivityRecognition() && stepDetectorSensor != null -> CountMode.HARDWARE_DETECTOR
+            else -> CountMode.ACCELEROMETER
+        }
+        Log.d(TAG, "Reconfigured counting mode: $mode")
+        syncWakeLock()
+    }
+
     private fun registerSensors() {
         if (sensorsRegistered) return
 
         var ok = false
-        when (mode) {
-            CountMode.HARDWARE_COUNTER -> ok = sensorManager.registerListener(
-                this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL, HARDWARE_BATCH_LATENCY_US, handler
-            )
-            CountMode.HARDWARE_DETECTOR -> ok = sensorManager.registerListener(
-                this, stepDetectorSensor, SensorManager.SENSOR_DELAY_NORMAL, 0, handler
-            )
-            CountMode.ACCELEROMETER -> Unit
+        try {
+            when (mode) {
+                CountMode.HARDWARE_COUNTER -> ok = sensorManager.registerListener(
+                    this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL, HARDWARE_BATCH_LATENCY_US, handler
+                )
+                CountMode.HARDWARE_DETECTOR -> ok = sensorManager.registerListener(
+                    this, stepDetectorSensor, SensorManager.SENSOR_DELAY_NORMAL, 0, handler
+                )
+                CountMode.ACCELEROMETER -> Unit
+            }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Hardware sensor permission revoked", e)
+            ok = false
         }
 
         if (!ok && mode != CountMode.ACCELEROMETER) {
