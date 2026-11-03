@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- We wrap the bitmap in a layer-list to zoom in (using negative insets)
+     without squashing the image. This ensures the Jolly Roger skull
+     is centered and large. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:left="-24dp"
+        android:right="-24dp"
+        android:top="-24dp"
+        android:bottom="-24dp">
+        <bitmap
+            android:src="@drawable/zori_icon"
+            android:gravity="center" />
+    </item>
+</layer-list>
