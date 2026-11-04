@@ -7,9 +7,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.appwidget.AppWidgetManager
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -34,10 +32,6 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import android.util.Log
-import android.view.View
-import android.widget.RemoteViews
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -46,8 +40,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.chazc.steptracker.ui.theme.BandageWhite
-import com.chazc.steptracker.ui.theme.OnigiriBlack
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -1035,54 +1027,7 @@ class StepListenerService : Service(), SensorEventListener {
         }
         lastWidgetUpdateMs = now
         uiDirty = false
-
-        try {
-            val appWidgetManager = AppWidgetManager.getInstance(this)
-            val widgetIds = appWidgetManager.getAppWidgetIds(ComponentName(this, StepTrackerWidget::class.java))
-            if (widgetIds.isEmpty()) return
-
-            val theme = StepTrackerState.selectedCharacter.value
-            val views = RemoteViews(packageName, R.layout.widget_step_tracker)
-
-            // Background image by resource id (keeps the RemoteViews parcel small).
-            if (theme.backgroundRes != null) {
-                views.setViewVisibility(R.id.widget_bg_image, View.VISIBLE)
-                views.setImageViewResource(R.id.widget_bg_image, theme.backgroundRes)
-                views.setInt(R.id.widget_root, "setBackgroundColor", Color.Black.copy(alpha = 0.35f).toArgb())
-            } else {
-                views.setViewVisibility(R.id.widget_bg_image, View.GONE)
-                views.setInt(R.id.widget_root, "setBackgroundColor", OnigiriBlack.toArgb())
-            }
-
-            views.setTextViewText(R.id.widget_moniker, theme.moniker)
-            views.setTextColor(R.id.widget_moniker, theme.secondary.toArgb())
-            views.setTextViewText(R.id.widget_quote, "\"${QuotesProvider.getQuoteOfDay(theme)}\"")
-
-            views.setTextViewText(R.id.widget_steps, "$stepCount ${theme.stats.stepsLabel}")
-            views.setTextColor(R.id.widget_steps, BandageWhite.toArgb())
-
-            views.setTextViewText(R.id.widget_distance, formatDistance(dailyDistanceMeters))
-            views.setTextViewText(R.id.widget_distance_label, theme.stats.distanceLabel)
-            views.setTextColor(R.id.widget_distance_label, theme.secondary.toArgb())
-
-            views.setTextViewText(R.id.widget_calories, "${caloriesForSteps(stepCount)} kcal")
-            views.setTextViewText(R.id.widget_calories_label, theme.stats.caloriesLabel)
-            views.setTextColor(R.id.widget_calories_label, theme.secondary.toArgb())
-
-            views.setTextViewText(R.id.widget_active_min, "${stepCount / 100} min")
-            views.setTextViewText(R.id.widget_active_label, theme.stats.activeLabel)
-            views.setTextColor(R.id.widget_active_label, theme.secondary.toArgb())
-
-            val goal = AppSettings.getDailyGoal(this)
-            views.setProgressBar(R.id.widget_progress, goal, stepCount.coerceAtMost(goal), false)
-            views.setInt(R.id.widget_btn_start, "setBackgroundColor", theme.primary.toArgb())
-            views.setInt(R.id.widget_btn_stop, "setBackgroundColor", theme.tertiary.toArgb())
-
-            appWidgetManager.updateAppWidget(widgetIds, views)
-        } catch (e: Exception) {
-            // A launcher hiccup must not be able to stop step counting.
-            Log.w(TAG, "Widget update failed: ${e.message}")
-        }
+        WidgetRenderer.update(this)
     }
 
     private fun gatedPersist(addedSteps: Int) {
